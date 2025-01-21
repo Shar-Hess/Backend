@@ -1,0 +1,115 @@
+CREATE TABLE IF NOT EXISTS Companies(
+  company_id INTEGER PRIMARY KEY,
+  company_name VARCHAR UNIQUE NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS Categories(
+  category_id INTEGER PRIMARY KEY,
+  category_name VARCHAR UNIQUE NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS Products(
+  product_id INTEGER PRIMARY KEY,
+  company_id INTEGER,
+  company_name VARCHAR UNIQUE NOT NULL,
+  price INTEGER,
+  description VARCHAR,
+  active BOOLEAN,
+  FOREIGN KEY (company_id) REFERENCES Companies(company_id)
+);
+
+CREATE TABLE IF NOT EXISTS Warranties(
+  warranty_id INTEGER PRIMARY KEY,
+  product_id INTEGER,
+  warranty_months INTEGER NOT NULL,
+  FOREIGN KEY (product_id) REFERENCES Products(product_id)
+);
+
+CREATE TABLE IF NOT EXISTS Products_categories(
+  product_id INTEGER,
+  category_id INTEGER,
+  FOREIGN KEY (product_id) REFERENCES Products(product_id),
+  FOREIGN KEY (category_id) REFERENCES Categories(category_id)
+);
+
+INSERT INTO Companies(company_id, company_name)
+VALUES (11111, 'Company One');
+
+INSERT INTO Categories(category_id, category_name)
+VALUES (22222, 'Category One');
+
+INSERT INTO Products (product_id, company_id, company_name, price, description, active)
+VALUES (44444, 11111, 'Company One', 300, 'Product Description', TRUE);
+
+INSERT INTO Products_categories (product_id, category_id)
+VALUES (44444, 22222);
+
+INSERT INTO Warranties (warranty_id, product_id, warranty_months)
+VALUES (1, 44444, 24);
+
+SELECT * FROM Companies;
+SELECT * FROM Categories;
+SELECT * FROM Products;
+SELECT * FROM Warranties;
+SELECT * FROM Products WHERE active = TRUE;
+SELECT * FROM Products WHERE company_id = 11111;
+
+SELECT * FROM Companies WHERE company_id = 11111;
+
+SELECT * FROM Warranties WHERE warranty_id = 1;
+
+SELECT * 
+FROM Categories c
+JOIN products_categories pc ON c.category_id = pc.category_id
+JOIN Products p ON pc.product_id = p.product_id
+WHERE c.category_id = 22222
+AND p.product_id = 44444;
+
+
+SELECT p.*, w.*, c.*
+FROM Products p
+JOIN Warranties w ON p.product_id = w.product_id
+JOIN products_categories pc ON p.product_id = pc.product_id
+JOIN Categories c ON pc.category_id = c.category_id
+WHERE p.product_id = 44444
+AND c.category_id = 22222;
+
+
+UPDATE Companies
+SET company_name = 'Something Exciting'
+WHERE company_id = 11111;
+
+UPDATE Categories
+SET category_name = 'Happy Feet'
+WHERE category_id = 22222;
+
+UPDATE Products
+SET price = 350, description = 'This is the Updated Description', active = FALSE
+WHERE product_id = 44444;
+
+UPDATE Warranties
+SET warranty_months = 36
+WHERE warranty_id = 1;
+
+UPDATE products_categories
+SET category_id = 99999
+WHERE product_id = 44444 AND 99999 = 22222;
+
+
+DELETE FROM products_categories WHERE product_id = 44444;
+
+DELETE FROM Warranties WHERE product_id = 44444;
+
+DELETE FROM Products WHERE product_id = 44444;
+
+DELETE FROM products_categories WHERE category_id = 99999;
+
+DELETE FROM Categories WHERE category_id = 99999;
+
+DELETE FROM products_categories WHERE product_id IN (SELECT product_id FROM Products WHERE company_id = 11111);
+
+DELETE FROM Products WHERE company_id = 11111;
+
+DELETE FROM Companies WHERE company_id = 11111;
+
+DELETE FROM Warranties WHERE warranty_id = 1;
