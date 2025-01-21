@@ -5,8 +5,9 @@ name = "pypi"
 
 [packages]
 bcrypt = "*"
-psycopg2 = "*"
+psycopg = "*"
 flask = "*"
+psycopg2 = "*"
 
 [dev-packages]
 
