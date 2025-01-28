@@ -78,22 +78,24 @@ def read_products():
 def get_product_by_id(product_id):
     result = cursor.execute("""
         SELECT * FROM Products
-            WHERE product_id=%s;
-    """, 
-    (product_id,)
-    )
-
+        WHERE product_id=%s;
+    """, (product_id,))
+    
     result = cursor.fetchone()
-    return print ({"message": "product found", "results": result})
 
-@app.route('/products/active', methods=["GET"])
-def get_active_products(active):
-    results = cursor.execute("""
+    if result:
+        return jsonify({"message": "product found", "results": result})
+    else:
+        return jsonify({"message": "product not found"}), 404
+
+@app.route('/products', methods=["GET"])
+def get_active_products():
+    active = request.args.get('active', default='false', type=str).lower() in ['true', '1', 't', 'y', 'yes']
+
+    cursor.execute("""
         SELECT * FROM Products
-            WHERE active=%s;
-    """,
-    (bool(active),)
-    )
+        WHERE active=%s;
+    """, (active,))
 
     results = cursor.fetchall()
 
@@ -109,31 +111,65 @@ def get_active_products(active):
             }
             products_list.append(product_record)
 
-        return print({"message": "products found", "results": products_list})
+        return jsonify({"message": "products found", "results": products_list})
     else:
-        print("No product found")
+        return jsonify({"message": "no products found"}), 404
 
-@app.route('/products/active', methods=["PUT"])
-def update_product_by_id(product_id, active):
-    cursor.execute("""
+
+@app.route('/products/<product_id>', methods=["PUT"])
+def update_product_by_id(product_id):
+
+    post_data = request.form if request.form else request.get_json()
+    update_fields = {}
+
+    if 'product_name' in post_data:
+        update_fields['product_name'] = post_data['product_name']
+    if 'description' in post_data:
+        update_fields['description'] = post_data['description']
+    if 'price' in post_data:
+        try:
+            update_fields['price'] = float(post_data['price']) 
+        except ValueError:
+            return jsonify({"error": "'price' must be a valid number"}), 400
+    if 'active' in post_data:
+        update_fields['active'] = bool(post_data['active'])
+    
+    if not update_fields:
+        return jsonify({"error": "No valid fields to update"}), 400
+
+
+    set_clause = ", ".join([f"{key} = %s" for key in update_fields.keys()])
+    values = list(update_fields.values())
+    values.append(product_id) 
+
+    query = f"""
         UPDATE Products
-            SET active = %s
+        SET {set_clause}
+        WHERE product_id = %s;
+    """
+
+    try:
+
+        cursor.execute(query, tuple(values))
+        cursor.execute("""
+            SELECT * FROM Products
             WHERE product_id = %s;
-    """,
-    (bool(active), product_id)
-    )
+        """, (product_id,))
 
-    result= cursor.execute("""
-        SELECT * FROM Products
-            WHERE product_id = %s;
-    """,
-        (product_id, )
-    )
+        result = cursor.fetchone()
 
-    result = cursor.fetchone()
+        if result is None:
+            return jsonify({"message": "Product not found"}), 404
 
-    conn.commit()
-    return print({"message": "Updated", "results": result})
+
+        conn.commit()
+
+        return jsonify({"message": "Updated", "results": result})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 
 @app.route('/product/delete/<product_id>', methods=['DELETE'])
 def delete_product_by_id(product_id):
@@ -165,7 +201,6 @@ def delete_product_by_id(product_id):
         
     except Exception as e:
         print(e)
-        cursor.rollback()
         return jsonify({"message": "Product could not be deleted"})
 
 # Company routes and controllers     
@@ -233,29 +268,57 @@ def read_company_by_id(company_id):
     )
 
     result = cursor.fetchone()
-    return print ({"message": "company found", "results": result})
+
+    if result:
+        return jsonify({"message": "company found", "results": result})
+    else:
+        return jsonify({"message": "product not found"}), 404
 
 
 @app.route('/company/<company_id>', methods=["PUT"])
 def update_company_by_id(company_id):
-    cursor.execute("""
+
+    post_data = request.form if request.form else request.get_json()
+    
+    update_fields = {}
+
+    if 'company_name' in [post_data]:
+        update_fields['company_name'] = [post_data]['company_name']
+
+    if not update_fields:
+        return jsonify({"error": "No valid fields to update"}), 400
+
+    set_clause = ", ".join([f"{key} = %s" for key in update_fields.keys()])
+    values = list(update_fields.values())
+    values.append(company_id)  
+
+
+    query = f"""
         UPDATE companies
+        SET {set_clause}
+        WHERE company_id = %s;
+    """
+
+    try:
+        cursor.execute(query, tuple(values))
+
+        cursor.execute("""
+            SELECT * FROM companies
             WHERE company_id = %s;
-    """,
-    (company_id, )
-    )
+        """, (company_id,))
 
-    result= cursor.execute("""
-        SELECT * FROM companies
-            WHERE company_id = %s;
-    """,
-        (company_id, )
-    )
+        result = cursor.fetchone()
 
-    result = cursor.fetchone()
+        if result is None:
+            return jsonify({"message": "Company not found"}), 404
 
-    conn.commit()
-    return print({"message": "Updated", "results": result})
+        conn.commit()
+
+        return jsonify({"message": "Updated", "results": result})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route('/company/delete/<company_id>', methods=['DELETE'])
 def delete_company_by_id(company_id):
@@ -287,7 +350,6 @@ def delete_company_by_id(company_id):
         
     except Exception as e:
         print(e)
-        cursor.rollback()
         return jsonify({"message": "Company could not be deleted"})
 
 
@@ -317,7 +379,7 @@ def create_category():
     cursor.execute("""
         INSERT INTO categories
             (category_name)
-            VALUES(%s, %s, %s)
+            VALUES(%s)
         """,
         (category_name, )
     )
@@ -348,37 +410,59 @@ def read_categories():
 
 @app.route('/category/<category_id>', methods=["GET"])
 def read_category_by_id(category_id):
-    result = cursor.execute("""
+    cursor.execute("""
         SELECT * FROM categories
-            WHERE category_id=%s;
-    """, 
-    (category_id,)
-    )
+        WHERE category_id=%s;
+    """, (category_id,))
 
     result = cursor.fetchone()
-    return print ({"message": "category found", "results": result})
 
+    if result:
+        return jsonify({"message": "category found", "results": result})
+    else:
+        return jsonify({"message": "category not found"}), 404
 
 @app.route('/category/<category_id>', methods=["PUT"])
 def update_category_by_id(category_id):
-    cursor.execute("""
+    post_data = request.form if request.form else request.get_json()
+    update_fields = {}
+
+    if 'category_name' in post_data:
+        update_fields['category_name'] = post_data['category_name']
+
+    if not update_fields:
+        return jsonify({"error": "No valid fields to update"}), 400
+
+    set_clause = ", ".join([f"{key} = %s" for key in update_fields.keys()])
+    values = list(update_fields.values())
+    values.append(category_id)  
+
+
+    query = f"""
         UPDATE categories
+        SET {set_clause}
+        WHERE category_id = %s;
+    """
+
+    try:
+        cursor.execute(query, tuple(values))
+
+        cursor.execute("""
+            SELECT * FROM categories
             WHERE category_id = %s;
-    """,
-    (category_id, )
-    )
+        """, (category_id,))
 
-    result= cursor.execute("""
-        SELECT * FROM categories
-            WHERE category_id = %s;
-    """,
-        (category_id, )
-    )
+        result = cursor.fetchone()
 
-    result = cursor.fetchone()
+        if result is None:
+            return jsonify({"message": "Category not found"}), 404
 
-    conn.commit()
-    return print({"message": "Updated", "results": result})
+        conn.commit()
+
+        return jsonify({"message": "Updated", "results": result})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/category/delete/<category_id>', methods=['DELETE'])
 def delete_category_by_id(category_id):
@@ -410,7 +494,6 @@ def delete_category_by_id(category_id):
         
     except Exception as e:
         print(e)
-        cursor.rollback()
         return jsonify({"message": "category could not be deleted"})
 
 
@@ -420,8 +503,9 @@ def delete_category_by_id(category_id):
 def create_warranty():
     post_data = request.form if request.form else request.get_json()
 
-    product_id = post_data.get('product_id, warranty_months')
-    warranty_months = post_data.get('warra')
+    product_id = post_data.get('product_id')
+
+    warranty_months = post_data.get('warranty_months')
 
     if not product_id:
         return jsonify({"message": "product_id is a required field"}), 400
@@ -436,7 +520,7 @@ def create_warranty():
     result = cursor.fetchone()
 
     if result:
-        return jsonify({"message": 'category already exists'}), 400
+        return jsonify({"message": 'warranty already exists'}), 400
 
     cursor.execute("""
         INSERT INTO warranties
@@ -447,42 +531,59 @@ def create_warranty():
     )
 
     conn.commit()
-    return jsonify({"message": f"warranty {product_id, warranty_months} added to DB"}), 201
+    return jsonify({"message": f"warranty added to product id - {product_id} added to DB"}), 201
 
 
 @app.route('/warranty/<warranty_id>', methods=["GET"])
 def read_warranty_by_id(warranty_id):
-    result = cursor.execute("""
+    cursor.execute("""
         SELECT * FROM warranties
-            WHERE warranty_id=%s;
-    """, 
-    (warranty_id,)
-    )
+        WHERE warranty_id=%s;
+    """, (warranty_id,))
 
     result = cursor.fetchone()
-    return print ({"message": "warranty found", "results": result})
+
+    if result:
+        return jsonify({"message": "warranty found", "results": result})
+    else:
+        return jsonify({"message": "warranty not found"}), 404
 
 
 @app.route('/warranty/<warranty_id>', methods=["PUT"])
 def update_warranty_by_id(warranty_id):
-    cursor.execute("""
+    post_data = request.form if request.form else request.get_json()
+
+    if 'warranty_months' not in post_data:
+        return jsonify({"error": "'warranty_months' is required"}), 400
+    
+    warranty_months = post_data['warranty_months']
+    
+    query = """
         UPDATE warranties
+        SET warranty_months = %s
+        WHERE warranty_id = %s;
+    """
+
+    try:
+        cursor.execute(query, (warranty_months, warranty_id))
+
+        cursor.execute("""
+            SELECT * FROM warranties
             WHERE warranty_id = %s;
-    """,
-    (warranty_id, )
-    )
+        """, (warranty_id,))
 
-    result= cursor.execute("""
-        SELECT * FROM warranties
-            WHERE warranty_id = %s;
-    """,
-        (warranty_id, )
-    )
+        result = cursor.fetchone()
+        if result is None:
+            return jsonify({"message": "Warranty not found"}), 404
 
-    result = cursor.fetchone()
+        conn.commit()
 
-    conn.commit()
-    return print({"message": "Updated", "results": result})
+        return jsonify({"message": "Updated", "results": result})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 
 @app.route('/warranty/delete/<warranty_id>', methods=['DELETE'])
 def delete_warranty_by_id(warranty_id):
@@ -522,7 +623,6 @@ def delete_warranty_by_id(warranty_id):
         
     except Exception as e:
         print(e)
-        cursor.rollback()
         return jsonify({"message": "warranty could not be deleted"})
 
 if __name__ == '__main__':
