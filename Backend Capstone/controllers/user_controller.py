@@ -22,10 +22,8 @@ def create_user():
 
     return jsonify({"message": "user added", "result": user_schema.dump(new_user)}), 201
 
-# @authenticate
+
 def get_all_users(request):
-    # if auth_info.user.role != 'trainer':  
-    #     return jsonify({"message": "Unauthorized"}), 403
 
     users_query = db.session.query(Users).all()
     return jsonify({"message": "Users found", "result": users_schema.dump(users_query)}), 200

@@ -10,6 +10,7 @@ from lib.authenticate import authenticate, authenticate_return_auth, validate_uu
 
 def create_workout():
     post_data = request.form if request.form else request.json    
+    
 
     workout = Workout.new_workout_obj()
     populate_object(workout, post_data)
