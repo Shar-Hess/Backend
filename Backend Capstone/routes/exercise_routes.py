@@ -9,16 +9,16 @@ def create_exercise():
 
 @exercises.route('/exercise/<exercise_id>', methods=['GET'])
 def get_exercise_by_id(exercise_id):
-    return controllers.get_exercise_by_id(request, exercise_id)
+    return controllers.get_exercise_by_id(exercise_id)
 
 @exercises.route('/exercises', methods=['GET'])
 def get_all_exercises():
-    return controllers.get_all_exercises(request)
+    return controllers.get_all_exercises()
 
 @exercises.route('/exercise/<exercise_id>', methods=['PUT'])
 def update_exercise(exercise_id):
-    return controllers.update_exercise(request, exercise_id)
+    return controllers.update_exercise(exercise_id)
 
 @exercises.route('/exercise/<exercise_id>', methods=['DELETE'])
 def delete_exercise(exercise_id):
-    return controllers.delete_exercise(request, exercise_id)
+    return controllers.delete_exercise(exercise_id)
